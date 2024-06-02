@@ -71,10 +71,8 @@ def plot_face_blendshapes_bar_graph(face_blendshapes):
 
 def get_lip_diff(faces_landmarks):
     upper_mean=sum(faces_landmarks[0][i].y for i in range(11,14) )
-    print("l,u",faces_landmarks[0][13],faces_landmarks[0][14])
     lower_mean=sum(faces_landmarks[0][i].y for i in range(14,17))
     total_lip_height=abs(faces_landmarks[0][11].y-faces_landmarks[0][16].y)
-    print(upper_mean,lower_mean,total_lip_height)
     return abs(upper_mean-lower_mean)/total_lip_height
 
 
@@ -121,8 +119,6 @@ while cap.isOpened():
        
         if len(detection_result.face_landmarks):
             current_diff=get_lip_diff(detection_result.face_landmarks)
-            print("defauotl",closed_relative_difference)
-            print("current",current_diff)
             if current_diff>closed_relative_difference*1.05:
                 print("mouth is open")
             else:
