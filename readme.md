@@ -4,4 +4,4 @@
 
 ## Tech
 
-- Mediapipe
+- Google's Mediapipe.
