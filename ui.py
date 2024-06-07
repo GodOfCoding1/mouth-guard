@@ -48,7 +48,7 @@ class RedRectangleOverlay(QWidget):
         y = screen_geometry.height() - self.height()
         self.move(x, y)
 
-if __name__ == "__main__":
+def open_overlay():
     app = QApplication(sys.argv)
  
     screen_geometry = QApplication.desktop().screenGeometry()
@@ -58,12 +58,12 @@ if __name__ == "__main__":
     height_block=int(screen_geometry.height()*0.01)
 
     # Create and position the left overlay with custom size
-    left_overlay = RedRectangleOverlay(width_inline, width_block)
+    left_overlay = RedRectangleOverlay(width_inline, height_inline)
     left_overlay.move_to_left()
     left_overlay.show()
 
     # Create and position the right overlay with custom size
-    right_overlay = RedRectangleOverlay(width_inline, width_block)
+    right_overlay = RedRectangleOverlay(width_inline, height_inline)
     right_overlay.move_to_right()
     right_overlay.show()
 
@@ -78,5 +78,8 @@ if __name__ == "__main__":
     bottom_overlay.show()
 
     sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    open_overlay()
 
 
