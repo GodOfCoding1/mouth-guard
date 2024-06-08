@@ -62,6 +62,7 @@ def get_default_ratio(image_frame:typing.MatLike,model):
         pass
     
 
+
 with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:# Setup mediapipe instance
     cap = cv2.VideoCapture(0)
     #first time running loop
