@@ -27,17 +27,8 @@ def get_mouth_shoulder_ratio(landmarks) -> float:
     return abs(mouth_height-shoulder_height)/shoulder_span
 
 def is_pose_correct(image_frame:typing.MatLike,model,default_ratio):
-    # Recolor image to RGB
-    image = cv2.cvtColor(image_frame, cv2.COLOR_BGR2RGB)
-    image.flags.writeable = False
-    results = model.process(image)
-    # Recolor back to BGR
-    image.flags.writeable = True
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    
     try:
-        landmarks = results.pose_landmarks.landmark
-        current_ratio=get_mouth_shoulder_ratio(landmarks)
+        current_ratio=process_ratio_from_image(image_frame,model)
         if current_ratio<default_ratio*0.8:
             return False
         else:
@@ -45,8 +36,7 @@ def is_pose_correct(image_frame:typing.MatLike,model,default_ratio):
     except:
         raise ValueError("error detecting body")
     
-def get_default_ratio(image_frame:typing.MatLike,model):
-    input("< press enter to take picture for pose measurements (if face & shoulders is not visible this will repeat)>")
+def process_ratio_from_image(image_frame:typing.MatLike,model):
     # Recolor image to RGB
     image = cv2.cvtColor(image_frame, cv2.COLOR_BGR2RGB)
     image.flags.writeable = False
@@ -59,34 +49,65 @@ def get_default_ratio(image_frame:typing.MatLike,model):
         landmarks = results.pose_landmarks.landmark
         return get_mouth_shoulder_ratio(landmarks)
     except:
-        pass
+        raise ValueError("error detecting body")
     
+def main():
+    with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:# Setup mediapipe instance
+        cap = cv2.VideoCapture(0)
+        #first time running loop
+        correct_ratio=None
+        while cap.isOpened():
+            if correct_ratio:
+                break
+            _, frame = cap.read()
+            correct_ratio=process_ratio_from_image(image_frame=frame,model=pose)
+            print(correct_ratio)
+            
+        input("press enter to start")
+        while cap.isOpened():
+            _, frame = cap.read()
+            try:
+                if is_pose_correct(image_frame=frame,model=pose,default_ratio=correct_ratio):
+                    print("pose is correct")
+                else:
+                    print("pose is wrong")
+            except:
+                print("erroorrr")
+            if cv2.waitKey(10) & 0xFF == ord('q'):
+                break
+            sleep(2)
 
+        cap.release()
+        cv2.destroyAllWindows()
 
-with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:# Setup mediapipe instance
-    cap = cv2.VideoCapture(0)
-    #first time running loop
-    correct_ratio=None
-    while cap.isOpened():
-        if correct_ratio:
-            break
-        _, frame = cap.read()
-        correct_ratio=get_default_ratio(image_frame=frame,model=pose)
-        print(correct_ratio)
-        
-    input("press enter to start")
-    while cap.isOpened():
-        _, frame = cap.read()
+class PoseChecker():
+    def __init__(self) -> None:
+        self.model=mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+        self.default_ratio=None
+        self.error_counter=0
+        self.error_threshold=10
+
+    def process_ratio_from_image(self,image_frame:typing.MatLike):
+        # Recolor image to RGB
+        image = cv2.cvtColor(image_frame, cv2.COLOR_BGR2RGB)
+        image.flags.writeable = False
+        results = self.model.process(image)
+        # Recolor back to BGR
+        image.flags.writeable = True
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        # Extract landmarks
         try:
-            if is_pose_correct(image_frame=frame,model=pose,default_ratio=correct_ratio):
-                print("pose is correct")
-            else:
-                print("pose is wrong")
+            landmarks = results.pose_landmarks.landmark
+            self.error_counter-=1
+            return get_mouth_shoulder_ratio(landmarks)
         except:
-            print("erroorrr")
-        if cv2.waitKey(10) & 0xFF == ord('q'):
-            break
-        sleep(2)
-
-    cap.release()
-    cv2.destroyAllWindows()
+            self.error_counter+=1
+            if self.error_counter>self.error_threshold:
+                raise ValueError(f"Some error occured consecutively for {self.error_threshold} times")
+        
+    def is_pose_correct(self,image_frame:typing.MatLike):
+        if self.default_ratio:
+            current_ratio=self.process_ratio_from_image(image_frame)
+            return False if current_ratio<self.default_ratio*0.8 else True
+        else:
+            raise ValueError("You have to call getDeafultRatio before calling is_pose_correct")
