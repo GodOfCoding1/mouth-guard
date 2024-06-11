@@ -1,4 +1,3 @@
-
 # STEP 1: Import the necessary modules.
 import mediapipe as mp
 import cv2
@@ -87,6 +86,16 @@ class PoseChecker():
         self.error_counter=0
         self.error_threshold=10
 
+    def get_mouth_shoulder_ratio(self,landmarks) -> float:
+        mouth_left=landmarks[10]
+        mouth_right=landmarks[9]
+        mouth_height=(mouth_left.y+mouth_right.y)/2
+        shoulder_left=landmarks[12]
+        shoulder_right=landmarks[11]
+        shoulder_height=(shoulder_left.y+shoulder_right.y)/2
+        shoulder_span=abs(shoulder_left.x-shoulder_right.x)
+        return abs(mouth_height-shoulder_height)/shoulder_span
+    
     def process_ratio_from_image(self,image_frame:typing.MatLike):
         # Recolor image to RGB
         image = cv2.cvtColor(image_frame, cv2.COLOR_BGR2RGB)
@@ -99,7 +108,7 @@ class PoseChecker():
         try:
             landmarks = results.pose_landmarks.landmark
             self.error_counter-=1
-            return get_mouth_shoulder_ratio(landmarks)
+            return self.get_mouth_shoulder_ratio(landmarks)
         except:
             self.error_counter+=1
             if self.error_counter>self.error_threshold:

@@ -8,6 +8,7 @@ from mediapipe.framework.formats import landmark_pb2
 import numpy as np
 import matplotlib.pyplot as plt
 from time import sleep
+from cv2 import typing
 
 def draw_landmarks_on_image(rgb_image, detection_result):
   face_landmarks_list = detection_result.face_landmarks
@@ -53,6 +54,21 @@ def get_lip_diff(faces_landmarks):
     total_lip_height=abs(faces_landmarks[0][11].y-faces_landmarks[0][16].y)
     return abs(upper_mean-lower_mean)/total_lip_height
 
+def get_default_ratio(image_frame:typing.MatLike,model):
+    input("< press enter to take picture for pose measurements (if face is not visible this will repeat)>")
+    # Recolor image to RGB
+    image = cv2.cvtColor(image_frame, cv2.COLOR_BGR2RGB)
+    image.flags.writeable = False
+    results = model.process(image)
+    # Recolor back to BGR
+    image.flags.writeable = True
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    # Extract landmarks
+    try:
+        landmarks = results.pose_landmarks.landmark
+        return get_mouth_shoulder_ratio(landmarks)
+    except:
+        pass
 
 # STEP 2: Create an FaceLandmarker object.
 base_options = python.BaseOptions(model_asset_path='face_landmarker_v2_with_blendshapes.task')
@@ -107,3 +123,40 @@ while cap.isOpened():
             break
         # checks every 1 second
         sleep(1)
+
+class PoseChecker():
+    def __init__(self) -> None:
+        base_options = python.BaseOptions(model_asset_path='face_landmarker_v2_with_blendshapes.task')
+        options = vision.FaceLandmarkerOptions(base_options=base_options,
+                                              output_face_blendshapes=True,
+                                              output_facial_transformation_matrixes=True,
+                                              num_faces=1)
+        self.model=vision.FaceLandmarker.create_from_options(options)
+        self.default_ratio=None
+        self.error_counter=0
+        self.error_threshold=10
+
+    def process_ratio_from_image(self,image_frame:typing.MatLike):
+        # Recolor image to RGB
+        image = cv2.cvtColor(image_frame, cv2.COLOR_BGR2RGB)
+        image.flags.writeable = False
+        results = self.model.process(image)
+        # Recolor back to BGR
+        image.flags.writeable = True
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        # Extract landmarks
+        try:
+            landmarks = results.pose_landmarks.landmark
+            self.error_counter-=1
+            return get_mouth_shoulder_ratio(landmarks)
+        except:
+            self.error_counter+=1
+            if self.error_counter>self.error_threshold:
+                raise ValueError(f"Some error occured consecutively for {self.error_threshold} times")
+        
+    def is_pose_correct(self,image_frame:typing.MatLike):
+        if self.default_ratio:
+            current_ratio=self.process_ratio_from_image(image_frame)
+            return False if current_ratio<self.default_ratio*0.8 else True
+        else:
+            raise ValueError("You have to call getDeafultRatio before calling is_pose_correct")
