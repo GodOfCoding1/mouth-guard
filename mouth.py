@@ -54,21 +54,6 @@ def get_lip_diff(faces_landmarks):
     total_lip_height=abs(faces_landmarks[0][11].y-faces_landmarks[0][16].y)
     return abs(upper_mean-lower_mean)/total_lip_height
 
-def get_default_ratio(image_frame:typing.MatLike,model):
-    input("< press enter to take picture for pose measurements (if face is not visible this will repeat)>")
-    # Recolor image to RGB
-    image = cv2.cvtColor(image_frame, cv2.COLOR_BGR2RGB)
-    image.flags.writeable = False
-    results = model.process(image)
-    # Recolor back to BGR
-    image.flags.writeable = True
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    # Extract landmarks
-    try:
-        landmarks = results.pose_landmarks.landmark
-        return get_mouth_shoulder_ratio(landmarks)
-    except:
-        pass
 
 # STEP 2: Create an FaceLandmarker object.
 base_options = python.BaseOptions(model_asset_path='face_landmarker_v2_with_blendshapes.task')
@@ -124,7 +109,7 @@ while cap.isOpened():
         # checks every 1 second
         sleep(1)
 
-class PoseChecker():
+class MouthChecker():
     def __init__(self) -> None:
         base_options = python.BaseOptions(model_asset_path='face_landmarker_v2_with_blendshapes.task')
         options = vision.FaceLandmarkerOptions(base_options=base_options,
@@ -136,19 +121,26 @@ class PoseChecker():
         self.error_counter=0
         self.error_threshold=10
 
-    def process_ratio_from_image(self,image_frame:typing.MatLike):
-        # Recolor image to RGB
-        image = cv2.cvtColor(image_frame, cv2.COLOR_BGR2RGB)
-        image.flags.writeable = False
-        results = self.model.process(image)
-        # Recolor back to BGR
-        image.flags.writeable = True
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        # Extract landmarks
+    def get_lip_diff(self,faces_landmarks)->float:
+      upper_mean=sum(faces_landmarks[0][i].y for i in range(11,14) )
+      lower_mean=sum(faces_landmarks[0][i].y for i in range(14,17))
+      total_lip_height=abs(faces_landmarks[0][11].y-faces_landmarks[0][16].y)
+      return abs(upper_mean-lower_mean)/total_lip_height
+
+    def get_default_ratio(self,image_frame:typing.MatLike):
+        self.default_ratio=self.process_ratio_from_image(image_frame)
+        return self.default_ratio
+
+    def process_ratio_from_image(self,image_frame:typing.MatLike)->float|None:
         try:
-            landmarks = results.pose_landmarks.landmark
-            self.error_counter-=1
-            return get_mouth_shoulder_ratio(landmarks)
+            #proess image frame
+            image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_frame)
+            detection_result = self.model.detect(image)
+            if len(detection_result.face_landmarks):
+                self.error_counter-=1
+                return self.get_lip_diff(detection_result.face_landmarks)
+            else:
+                self.error_counter+=1
         except:
             self.error_counter+=1
             if self.error_counter>self.error_threshold:
@@ -157,6 +149,9 @@ class PoseChecker():
     def is_pose_correct(self,image_frame:typing.MatLike):
         if self.default_ratio:
             current_ratio=self.process_ratio_from_image(image_frame)
-            return False if current_ratio<self.default_ratio*0.8 else True
+            if current_ratio:
+              return False if current_ratio<self.default_ratio*0.8 else True
+            else:
+                return True #if its not visible it assumes ppose is correct
         else:
             raise ValueError("You have to call getDeafultRatio before calling is_pose_correct")
