@@ -96,6 +96,10 @@ class PoseChecker():
         shoulder_span=abs(shoulder_left.x-shoulder_right.x)
         return abs(mouth_height-shoulder_height)/shoulder_span
     
+    def get_default_ratio(self,image_frame:typing.MatLike):
+        self.default_ratio=self.process_ratio_from_image(image_frame)
+        return self.default_ratio
+
     def process_ratio_from_image(self,image_frame:typing.MatLike):
         # Recolor image to RGB
         image = cv2.cvtColor(image_frame, cv2.COLOR_BGR2RGB)
