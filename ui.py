@@ -53,7 +53,7 @@ def open_overlay():
     screen_geometry = QApplication.desktop().screenGeometry()
     width_inline=int(screen_geometry.width()*0.008)
     width_block=int(screen_geometry.width())
-    height_inline=int(screen_geometry.height())
+    height_inline=int(screen_geometry.height()) 
     height_block=int(screen_geometry.height()*0.01)
 
     # Create and position the left overlay with custom size
