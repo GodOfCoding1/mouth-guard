@@ -14,7 +14,6 @@ class RedRectangleOverlay(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        # Define the rectangle properties
         rect = QRect(0, 0, self.width(), self.height())
         painter.setBrush(QBrush(Qt.red))
         painter.setPen(QPen(Qt.red))
